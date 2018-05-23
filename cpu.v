@@ -226,7 +226,7 @@ module cpu(
 				dest<=id_ir[20:16];
 				end
 			else read<=0;
-			//跳转指令
+			//跳转指令 （暂未右移两位）
 			if (id_ir[31:26]==j) begin
 				branch<=1;
 				branch_addr<={6'b00000,id_ir[25:0]};
