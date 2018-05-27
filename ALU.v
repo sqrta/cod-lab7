@@ -25,14 +25,14 @@ module ALU(
   output     reg   	    [31:0]	alu_out
 
 );
-parameter	A_NOP	= 2'h00;	//¿ÕÔËËã 	
-parameter	A_ADD	= 2'h01;	//·ûºÅ¼Ó
-parameter	A_SUB	= 2'h02;	//·ûºÅ¼õ
-parameter	A_AND   	= 2'h03;	//Óë
-parameter	A_OR    	= 2'h04;	//»ò
-parameter	A_XOR   	= 2'h05;	//Òì»ò
-parameter	A_NOR   	= 2'h06;	//»ò·Ç
-
+parameter	A_NOP	= 3'h00;	//ç©ºè¿ç®— 	
+parameter	A_ADD	= 3'h01;	//ç¬¦å·åŠ 
+parameter	A_SUB	= 3'h02;	//ç¬¦å·å‡
+parameter	A_AND   = 3'h03;	//ä¸
+parameter	A_OR    = 3'h04;	//æˆ–
+parameter	A_XOR   = 3'h05;	//å¼‚æˆ–
+parameter	A_NOR   = 3'h06;	//æˆ–é
+parameter	A_NEG	= 3'h07;	//è´Ÿ
 
 always @(*) begin
 	case (alu_op)
@@ -50,6 +50,8 @@ always @(*) begin
 			alu_out<=alu_a^alu_b;
 		A_NOR:
 			alu_out<=alu_a~^alu_b;	
+		A_NOR:
+			alu_out<=0-alu_a;
 	endcase
 	end		
 

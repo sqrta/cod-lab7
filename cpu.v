@@ -68,6 +68,15 @@ module cpu(
 	 parameter bgez = 6'b001111;
 	 parameter bltz = 6'b010000;
 	 parameter beqz = 6'b010001;
+	 parameter neg = 6'b100111;
+	 
+	 parameter com = 6'b001110;
+	 parameter seq = 6'h18;
+	 parameter sne = 6'h19;
+	 parameter sge = 6'h20;
+	 parameter sgt = 6'h21;
+	 parameter sle = 6'h22;
+	 parameter slt = 6'h23;
 	 /**********************/
 	 //计算操作码
 	 parameter op_nop=3'b000;
@@ -77,6 +86,7 @@ module cpu(
 	 parameter op_or=3'b100;
 	 parameter op_xor=3'b101;
 	 parameter op_nor=3'b110; 
+	 parameter op_neg=3'b111;
 /***************定义变量，连接模块********************/
 	 
 	 integer i;
@@ -206,9 +216,35 @@ module cpu(
 					end
 				else if (id_ir[5:0]==m_nor) begin
 					op<=op_nor;
-					end
+					end 
 				end
 			//I型指令
+			else if (id_ir[31:26]==com) begin
+				alu<=1;
+				op<=op_add;
+				dest<=id_ir[15:11];
+				rs<=0;
+				case(id_ir[5:0]) 
+					seq:
+						if (regs[id_ir[25:21]]==regs[id_ir[20:16]]) rt<=1;
+						else rt<=0;
+					sne:
+						if (regs[id_ir[25:21]]!=regs[id_ir[20:16]]) rt<=1;
+						else rt<=0;						
+					sge:
+						if (regs[id_ir[25:21]]>=regs[id_ir[20:16]]) rt<=1;
+						else rt<=0;							
+					sgt:
+						if (regs[id_ir[25:21]]>regs[id_ir[20:16]]) rt<=1;
+						else rt<=0;
+					sle:
+						if (regs[id_ir[25:21]]<=regs[id_ir[20:16]]) rt<=1;
+						else rt<=0;	
+					slt:
+						if (regs[id_ir[25:21]]<regs[id_ir[20:16]]) rt<=1;
+						else rt<=0;
+					endcase;
+				end				
 			else if (id_ir[31:26]==ori) begin
 				alu<=1;
 				op<=op_or;
@@ -242,6 +278,11 @@ module cpu(
 				else
 					rt<=regs[id_ir[20:16]];	
 				end
+			else if (id_ir[31:26]==neg) begin
+				alu<=1;
+				op<=op_neg;
+				dest<=id_ir[20:16];	
+				end					
 			else alu<=0;
 			//储存指令
 			if (id_ir[31:26]==sw) begin
