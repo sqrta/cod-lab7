@@ -48,8 +48,9 @@ module cpu(
 	 parameter m_xor = 6'b100110;
 	 parameter m_nor = 6'b100111;
 	 parameter jr = 6'b001000;
+	 parameter break = 6'b0001101;
 	 /*********************/
-	 parameter addi = 6'b001000;
+	 parameter addi = 6'b001000;          
 	 parameter andi = 6'b001100;
 	 parameter lw = 6'b100011;
 	 parameter sw = 6'b101011;
@@ -70,6 +71,7 @@ module cpu(
 	 parameter beqz = 6'b010001;
 	 parameter neg = 6'b100111;
 	 
+	 
 	 parameter com = 6'b001110;
 	 parameter seq = 6'h18;
 	 parameter sne = 6'h19;
@@ -88,7 +90,9 @@ module cpu(
 	 parameter op_nor=3'b110; 
 	 parameter op_neg=3'b111;
 /***************定义变量，连接模块********************/
-	 
+	 parameter rest=3'b000;
+	 parameter execute=3'b001;
+	 parameter pause=3'b010;
 	 integer i;
 	 wire [31:0]extend,alu_out;
 	 reg [31:0]regs[0:31];
@@ -100,14 +104,13 @@ module cpu(
 	 sign ex(id_ir,extend);	
 /***************************************/
 
-/*****状态机部分*****///仅仅用来方便debug，无实际作用
-	always@(posedge clk or negedge rst) begin
+/*****状态机部分*****/
+	always@(rst) begin
 		if(!rst) begin
-			state<=3'b0;
+			state<=rest;
 			end
 		else begin
-			if (state==3'b101) state<=3'b1;
-			else state<=state+1;
+			state<=execute;
 			end
 		end
 /**********************/
@@ -122,6 +125,8 @@ module cpu(
 			id_ir<=32'b0;
 			pc<=8'b0;
 			
+			end
+		else if (state!=execute) begin
 			end
 		else begin
 			id_ir<=ir;
@@ -155,7 +160,8 @@ module cpu(
 			dest<=5'b0;	
 			op<=3'b0;		
 			end
-		
+		else if (state!=execute) begin
+			end		
 		else if (id_ir[31:26]==nop && id_ir[5:0]==nop) begin
 			dest<=5'b0;
 			alu<=0;
@@ -179,7 +185,10 @@ module cpu(
 			else rs<=regs[id_ir[25:21]];					
 			//计算指令
 			//R型指令
-			if (id_ir[31:26]==cal && id_ir[5:0]!=nop) begin
+			if (id_ir[31:26]==cal && id_ir[5:0]==break) begin
+				state<=pause;
+				end
+			else if (id_ir[31:26]==cal && id_ir[5:0]!=nop && id_ir[5:0]!=break) begin
 				alu<=1;
 				if ((alu || read) && id_ir[20:16]==dest) rt<=alu_out;
 				
@@ -399,6 +408,8 @@ module cpu(
 			mem_alu<=0;
 			mem_dest<=5'b0;
 			end
+		else if (state!=execute) begin
+			end			
 		else begin
 			mem_ir<=ex_ir;
 			mem_read<=read;
@@ -434,6 +445,8 @@ module cpu(
 			wb_alu<=0;
 			wb_dest<=5'b0;
 			end
+		else if (state!=execute) begin
+			end			
 		else begin
 			wb_read<=mem_read;
 			wb_alu<=mem_alu;
@@ -451,6 +464,8 @@ module cpu(
 			for (i=0;i<32;i=i+1)
 				regs[i]<=32'b0;		
 			end
+		else if (state!=execute) begin
+			end			
 		else begin	
 			if (wb_alu) begin
 				regs[wb_dest]<=reg_in;
