@@ -42,44 +42,51 @@ module cpu(
 	 parameter add = 6'b100000;
 	 parameter addu = 6'b100001;
 	 parameter sub = 6'b100010;
-	 parameter subu = 6'b100011;	 
+	 parameter subu = 6'b100011;	
+	 parameter subi = 6'b001001;
 	 parameter m_and = 6'b100100;
 	 parameter m_or = 6'b100101;
 	 parameter m_xor = 6'b100110;
 	 parameter m_nor = 6'b100111;
+	 parameter move = 6'b101001;
 	 parameter jr = 6'b001000;
 	 parameter break = 6'b0001101;
 	 /*********************/
 	 parameter addi = 6'b001000;          
 	 parameter andi = 6'b001100;
 	 parameter lw = 6'b100011;
+	 parameter la = 6'b011111;
+	 parameter li =6'b100111;
 	 parameter sw = 6'b101011;
-
+	 parameter swl = 101010;
+	 parameter swr = 101100;
 	 parameter bgtz = 6'b000111;
 	 parameter bne = 6'b000101;
 	 parameter j = 6'b000010;
-
 	 parameter beq = 6'b000100;
 	 parameter blez = 6'b000110;
 	 parameter ori = 6'b001101;
-	 parameter xori = 6'b001110;
+	 parameter xori = 6'b011110;
 	 parameter slti = 6'b001010;	 	
 	 parameter jal = 6'b000011;
 	 parameter bnez = 6'b001110;
 	 parameter bgez = 6'b001111;
 	 parameter bltz = 6'b010000;
 	 parameter beqz = 6'b010001;
-	 parameter neg = 6'b100111;
-	 
-	 
-	 parameter com = 6'b001110;
-	 parameter seq = 6'h18;
-	 parameter sne = 6'h19;
-	 parameter sge = 6'h20;
-	 parameter sgt = 6'h21;
-	 parameter sle = 6'h22;
-	 parameter slt = 6'h23;
-	 /**********************/
+	 parameter neg = 6'b010111;
+	 parameter negu = 6'b101000;
+	 parameter trap = 6'b111111;	 
+	 parameter com = 6'b101110;
+	 parameter seq = 6'b011000;
+	 parameter sne = 6'b011001;
+	 parameter sge = 6'b011010;
+	 parameter sgt = 6'b011011;
+	 parameter sle = 6'b011100;
+	 parameter slt = 6'b011101;
+	 parameter sltu = 6'b011110;
+	 parameter sgeu = 6'b101110;
+/*****************************/
+	 parameter exe_addr=32'd50;
 	 //计算操作码
 	 parameter op_nop=3'b000;
 	 parameter op_add=3'b001;
@@ -100,15 +107,18 @@ module cpu(
 	 reg [31:0]rs,rt,rd;
 	 reg [31:0]id_ir;
 	 reg [2:0]op;
+	 reg [7:0]state_sign;
 	 ALU ALU(rs,rt,op,alu_out);
 	 sign ex(id_ir,extend);	
 /***************************************/
 
 /*****状态机部分*****/
-	always@(rst) begin
+	always@(rst or state_sign) begin
 		if(!rst) begin
 			state<=rest;
 			end
+		else if (state_sign)
+			state<=pause;
 		else begin
 			state<=execute;
 			end
@@ -161,6 +171,7 @@ module cpu(
 			op<=3'b0;		
 			end
 		else if (state!=execute) begin
+			state_sign<=state_sign-1;
 			end		
 		else if (id_ir[31:26]==nop && id_ir[5:0]==nop) begin
 			dest<=5'b0;
@@ -186,7 +197,7 @@ module cpu(
 			//计算指令
 			//R型指令
 			if (id_ir[31:26]==cal && id_ir[5:0]==break) begin
-				state<=pause;
+					state_sign<=8'd10;
 				end
 			else if (id_ir[31:26]==cal && id_ir[5:0]!=nop && id_ir[5:0]!=break) begin
 				alu<=1;
@@ -242,7 +253,10 @@ module cpu(
 						else rt<=0;						
 					sge:
 						if (regs[id_ir[25:21]]>=regs[id_ir[20:16]]) rt<=1;
-						else rt<=0;							
+						else rt<=0;
+					sge:
+						if (regs[id_ir[25:21]]>=regs[id_ir[20:16]]) rt<=1;
+						else rt<=0;														
 					sgt:
 						if (regs[id_ir[25:21]]>regs[id_ir[20:16]]) rt<=1;
 						else rt<=0;
@@ -252,25 +266,40 @@ module cpu(
 					slt:
 						if (regs[id_ir[25:21]]<regs[id_ir[20:16]]) rt<=1;
 						else rt<=0;
+					sltu:
+						if (regs[id_ir[25:21]]<regs[id_ir[20:16]]) rt<=1;
+						else rt<=0;						
 					endcase;
 				end				
 			else if (id_ir[31:26]==ori) begin
 				alu<=1;
 				op<=op_or;
 				dest<=id_ir[20:16];
-				if (id_ir[20:16]==ex_ir[15:11])
-					rt<=alu_out;
-				else
-					rt<=regs[id_ir[20:16]];	
+				rt<=extend;
 				end
+			else if (id_ir[31:26]==subi) begin
+				alu<=1;
+				op<=op_sub;
+				dest<=id_ir[20:16];
+				rt<=extend;
+				end				
+			else if (id_ir[31:26]==move) begin
+				alu<=1;
+				op<=op_add;
+				dest<=id_ir[20:16];
+				rt<=32'b0;
+				end		
+			else if (id_ir[31:26]==li) begin
+				alu<=1;
+				op<=op_add;
+				dest<=id_ir[20:16];
+				rt<=extend;
+				end							
 			else if (id_ir[31:26]==xori) begin
 				alu<=1;
 				op<=op_xor;
 				dest<=id_ir[20:16];
-				if (id_ir[20:16]==ex_ir[15:11])
-					rt<=alu_out;
-				else
-					rt<=regs[id_ir[20:16]];	
+				rt<=extend;
 				end			
 			else if (id_ir[31:26]==addi)begin
 				alu<=1;
@@ -282,12 +311,9 @@ module cpu(
 				alu<=1;
 				op<=op_and;
 				dest<=id_ir[20:16];
-				if (id_ir[20:16]==ex_ir[15:11])
-					rt<=alu_out;
-				else
-					rt<=regs[id_ir[20:16]];	
+				rt<=extend;
 				end
-			else if (id_ir[31:26]==neg) begin
+			else if (id_ir[31:26]==neg || id_ir[31:26]==negu) begin
 				alu<=1;
 				op<=op_neg;
 				dest<=id_ir[20:16];	
@@ -309,6 +335,36 @@ module cpu(
 					end	
 				else rt<=regs[id_ir[20:16]];
 				end
+			else if (id_ir[31:26]==swl) begin
+				write<=1;
+				rd<=extend;
+				//rt<=regs[id_ir[20:16]];
+				/**/
+				if ((alu || read) && id_ir[20:16]==dest) rt<=alu_out[31:16];
+				else if ((mem_alu || mem_read) && id_ir[20:16]==mem_dest) rt<=cal_out[31:16];
+				else if (id_ir[20:16]==wb_dest)begin
+					if (wb_alu)
+						rt<=reg_in[31:16];
+					else if (wb_read)
+						rt<=in_data[31:16];
+					end	
+				else rt<=regs[id_ir[20:16]][31:16];
+				end
+			else if (id_ir[31:26]==swr) begin
+				write<=1;
+				rd<=extend;
+				//rt<=regs[id_ir[20:16]];
+				/**/
+				if ((alu || read) && id_ir[20:16]==dest) rt<=alu_out[15:0];
+				else if ((mem_alu || mem_read) && id_ir[20:16]==mem_dest) rt<=cal_out[15:0];
+				else if (id_ir[20:16]==wb_dest)begin
+					if (wb_alu)
+						rt<=reg_in[15:0];
+					else if (wb_read)
+						rt<=in_data[15:0];
+					end	
+				else rt<=regs[id_ir[20:16]][15:0];				
+				end				
 			else write<=0;
 			//读取指令
 			if (id_ir[31:26]==lw) begin
@@ -321,6 +377,10 @@ module cpu(
 			if (id_ir[31:26]==j) begin
 				branch<=1;
 				branch_addr<={6'b00000,id_ir[25:0]};
+				end
+			else if (id_ir[31:26]==trap) begin
+				branch<=1;
+				branch_addr<=exe_addr+id_ir[25:0];
 				end
 				/*
 			else if (id_ir[31:26]==jal) begin
